@@ -1,0 +1,4 @@
+constructors	= g(2),A(0),B(0)
+variables		= x,y
+first 			= g(A,x)
+second			= g(y,B)
