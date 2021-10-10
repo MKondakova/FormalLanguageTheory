@@ -1,9 +1,9 @@
 const fs = require('fs');
-const { resourceUsage } = require('process');
+const { resourceUsage, exit } = require('process');
 
 let error = null;
-let constructors = [];
-let variables = [];
+let constructors = {};
+let variables = {};
 let first = '';
 let second = '';
 const VAR = 'variable';
@@ -30,8 +30,6 @@ function Init(path) {
 	if (error) {
 		return
 	}
-	
-
 }
 
 function getConstructors(line) {
@@ -54,8 +52,9 @@ function getConstructors(line) {
 }
 
 function getVariables(line) {
-	let variablesStr = line.match(/variables[ \t]*=[ \t]*(.*)/)[1];
-	variables = variablesStr.split(',');
+	const variablesStr = line.match(/variables[ \t]*=[ \t]*(.*)/)[1];
+	const variablesList = variablesStr.split(',');
+	variablesList.forEach(name => variables[name] = { name, 'usage': [] });
 }
 
 function getFirstAndSecond(line1, line2) {
@@ -67,7 +66,6 @@ function parseTerm(expr, pos) {
 	if (error) {
 		return null;
 	}
-	console.log(expr.slice(pos), pos);
 	pos = skipSpace(expr, pos);
 	if (!/^[0-9a-zA-Zа-яА-Я_-].*/.test(expr.split(pos))) {
 		error = "Ошибка при обработке терма " + expr + " на позиции " + pos + ". Некорректный символ";
@@ -77,7 +75,7 @@ function parseTerm(expr, pos) {
 	const name = expr.slice(pos, endOfName);
 	pos = endOfName;
 
-	if (variables.includes(name)) {
+	if (name in variables) {
 		return { name, 'type': VAR, pos };
 	} else if (name in constructors) {
 		if ((expr[pos] !== '(' && constructors[name].args !== 0) ||
@@ -126,7 +124,80 @@ function skipSpace(line, start) {
 	return line.slice(start).search(/\S/) + start;
 }
 
-Init('test1.txt');
+function getUnificator(first, second) {
+	if (first.type === CONSTR && second.type === CONSTR) {
+		if (first.name !== second.name) {
+			error = 'Ошибка при унификации, конструкторы ' + first.name + ' и ' + second.name + ' разные.';
+			return;
+		}
+		first.args.forEach((arg, i) => {
+			if (!error) {
+				getUnificator(arg, second.args[i]);
+			}
+		});
+		if (error) {
+			return;
+		}
+	} else if (first.type === VAR && second.type === VAR) {
+		first.name = second.name;
+		variables[first.name].usage.push({ 'name': second.name });
+	} else {
+		if (first.type === VAR) {
+			variables[first.name].usage.push({ 'name': second.name, 'args': second.args });
+			first.name = second.name;
+			first.args = second.args;
+		} else {
+			variables[second.name].usage.push({ 'name': first.name, 'args': first.args });
+		}
+	}
+}
+
+function getAnswer() {
+	for (const i in variables) {
+		const variable = variables[i];
+		if (variable.usage && variable.usage.length > 0){
+			variable.usage.forEach(usage => console.log(variable.name + ':=' + getStringFromTree(usage)));
+		}
+	}
+	console.log(getStringFromTree(first));
+}
+
+function getStringFromTree(tree){
+	let result = tree.name;
+	if (tree.args && tree.args.length > 0){
+		result += '(';
+		tree.args.forEach(arg => result += getStringFromTree(arg) + ', ');
+		result = result.slice(0, -2) + ')';
+	}
+	return result;
+}
+
+Init('test6.txt');
+if (error) {
+	console.error(error);
+	exit(1);
+}
+
 first = parseTerm(first, 0);
+if (error) {
+	console.error(error);
+	exit(1);
+}
+
 second = parseTerm(second, 0);
-console.log(first, second, error);
+if (error) {
+	console.error(error);
+	exit(1);
+}
+
+getUnificator(first, second);
+if (error) {
+	console.error(error);
+	exit(1);
+}
+
+getAnswer();
+if (error) {
+	console.error(error);
+	exit(1);
+}
