@@ -1,0 +1,141 @@
+first: {
+  name: "f",
+  type: "constructor",
+  args: [
+    {
+      name: "w",
+      type: "variable",
+      pos: 3,
+    },
+    {
+      name: "g",
+      type: "constructor",
+      args: [
+        {
+          name: "A",
+          type: "constructor",
+          args: [
+          ],
+          pos: 7,
+        },
+      ],
+      pos: 8,
+    },
+  ],
+  pos: 9,
+}
+
+variables: {
+  x: {
+    name: "x",
+    usage: [
+    ],
+  },
+  y: {
+    name: "y",
+    usage: [
+    ],
+  },
+  z: {
+    name: "z",
+    usage: [
+      {
+        name: "g",
+        type: "constructor",
+        args: [
+          {
+            name: "A",
+            type: "constructor",
+            args: [
+            ],
+            pos: 7,
+          },
+        ],
+        pos: 8,
+      },
+    ],
+  },
+  w: {
+    name: "w",
+    usage: [
+      {
+        second: {
+          name: "f",
+          type: "constructor",
+          args: [
+            {
+              name: "y",
+              type: "variable",
+              pos: 5,
+            },
+            {
+              name: "x",
+              type: "variable",
+              pos: 7,
+            },
+          ],
+          pos: 8,
+        },
+      },
+    ],
+  },
+  v: {
+    name: "v",
+    usage: [
+    ],
+  },
+}
+
+constructors: {
+  g: {
+    name: "g",
+    args: 1,
+  },
+  A: {
+    name: "A",
+    args: 0,
+  },
+  f: {
+    name: "f",
+    args: 2,
+  },
+}
+
+{
+  name: "f",
+  type: "constructor",
+  args: [
+    {
+      name: "f",
+      type: "variable",
+      pos: 3,
+      args: [
+        {
+          name: "y",
+          type: "variable",
+          pos: 5,
+        },
+        {
+          name: "x",
+          type: "variable",
+          pos: 7,
+        },
+      ],
+    },
+    {
+      name: "g",
+      type: "constructor",
+      args: [
+        {
+          name: "A",
+          type: "constructor",
+          args: [
+          ],
+          pos: 7,
+        },
+      ],
+      pos: 8,
+    },
+  ],
+  pos: 9,
+}

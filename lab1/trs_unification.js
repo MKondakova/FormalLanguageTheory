@@ -172,7 +172,7 @@ function getStringFromTree(tree){
 	return result;
 }
 
-Init('test6.txt');
+Init('unification_test1.txt');
 if (error) {
 	console.error(error);
 	exit(1);
