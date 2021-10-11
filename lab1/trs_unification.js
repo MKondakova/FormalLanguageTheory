@@ -172,6 +172,9 @@ function getStringFromTree(tree){
 	return result;
 }
 
+
+
+
 Init('unification_test1.txt');
 if (error) {
 	console.error(error);

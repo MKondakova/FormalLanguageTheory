@@ -72,6 +72,8 @@ function checkOverlap(words) {
 	})
 	return overlap;
 }
-Init('confluence_test2.txt');
+
+
+Init('confluence_test5.txt');
 checkOverlap(rulesLeftSides);
 console.log(resultText);
