@@ -15,25 +15,30 @@ function Init(path) {
 		input = fs.readFileSync(path, 'utf8');
 	} catch (err) {
 		error = err.toString();
-		return
+		return;
 	}
 	input = input.split(/\r\n|\r|\n/);
 	getConstructors(input[0]);
 	if (error) {
-		return
+		return;
 	}
 	getVariables(input[1]);
 	if (error) {
-		return
+		return;
 	}
 	getFirstAndSecond(input[2], input[3]);
 	if (error) {
-		return
+		return;
 	}
 }
 
 function getConstructors(line) {
-	let constructorsStr = line.match(/constructors[ \t]*=[ \t]*(.*)/)[1];
+	const regexpResult = line.match(/constructors[ \t]*=[ \t]*(.*)/);
+	if (!regexpResult) {
+		error = 'Неверный формат строки с конструкторами';
+		return;
+	}
+	let constructorsStr = regexpResult[1];
 	let constructorsArr = constructorsStr.replace(/[\(]|[\)\s*,?]/g, ' ').split(/ +/);
 	if (constructorsArr[constructorsArr.length - 1] === '') {
 		constructorsArr.pop()
@@ -52,14 +57,30 @@ function getConstructors(line) {
 }
 
 function getVariables(line) {
-	const variablesStr = line.match(/variables[ \t]*=[ \t]*(.*)/)[1];
-	const variablesList = variablesStr.split(',');
+	const regexpResult = line.match(/variables[ \t]*=[ \t]*(.*)/);
+	if (!regexpResult) {
+		error = 'Неверный формат строки с переменными';
+		return;
+	}
+	const variablesStr = regexpResult[1];
+	const variablesList = variablesStr.split(/ *, */);
 	variablesList.forEach(name => variables[name] = { name, 'usage': [] });
 }
 
 function getFirstAndSecond(line1, line2) {
-	first = line1.match(/first[ \t]*=[ \t]*(.*)/)[1];
-	second = line2.match(/second[ \t]*=[ \t]*(.*)/)[1];
+	let regexpResult = line1.match(/first[ \t]*=[ \t]*(.*)/);
+	if (!regexpResult) {
+		error = 'Неверный формат строки с первым термом';
+		return;
+	}
+	first = regexpResult[1];
+
+	regexpResult = line2.match(/second[ \t]*=[ \t]*(.*)/);
+	if (!regexpResult) {
+		error = 'Неверный формат строки со вторым термом';
+		return;
+	}
+	second = regexpResult[1];
 }
 
 function parseTerm(expr, pos) {
@@ -175,7 +196,7 @@ function getStringFromTree(tree){
 
 
 
-Init('unification_test1.txt');
+Init('tests/unification_test1.txt');
 if (error) {
 	console.error(error);
 	exit(1);

@@ -25,10 +25,19 @@ function Init(path) {
 function getLeftSides(input) {
 	const result = [];
 	input.forEach(line => {
-		result.push(line.match(/([a-zA-z]*)[ \t]*[->|→].*/)[1])
+		if (error) return;
+		if (line.match(emptyStringRegexp)) return;
+		const regexpResult = line.match(/[ \t]*([a-zA-z]*)[ \t]*[->|→].*/);
+		if (!regexpResult) {
+			error = 'Строка ' + line + ' не соответствует формату';
+			return;
+		}
+		result.push(regexpResult[1])
 	});
 	return result;
 }
+
+const emptyStringRegexp = /^\s+$/;
 
 function prefixFunction(s) {
 	const result = [0];
@@ -74,6 +83,6 @@ function checkOverlap(words) {
 }
 
 
-Init('confluence_test5.txt');
+Init('tests/confluence_test5.txt');
 checkOverlap(rulesLeftSides);
 console.log(resultText);
