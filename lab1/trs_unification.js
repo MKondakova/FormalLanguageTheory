@@ -99,8 +99,8 @@ function parseTerm(expr, pos) {
 	if (name in variables) {
 		return { name, 'type': VAR, pos };
 	} else if (name in constructors) {
-		if ((expr[pos] !== '(' && constructors[name].args !== 0) ||
-			(expr[pos] === '(' && constructors[name].args === 0)) {
+		if (((pos < expr.length && expr[pos] !== '(') && constructors[name].args !== 0) ||
+			((pos < expr.length && expr[pos] === '(') && constructors[name].args === 0)) {
 			error = "Ошибка при обработке терма " + expr + " на позиции " + pos + ". Неверное количество аргументов у " + name;
 			return null;
 		}
@@ -110,7 +110,7 @@ function parseTerm(expr, pos) {
 			return result;
 		}
 		pos ++;
-		while (expr[pos] !== ')') {
+		while (pos < expr.length && expr[pos] !== ')') {
 			const argParseResult = parseTerm(expr, pos);
 			if (error) {
 				return null;
@@ -138,7 +138,10 @@ function parseTerm(expr, pos) {
 }
 
 function getNameEnd(line, start) {
-	return line.slice(start).search(/[\(\), ]/) + start;
+	if (line.match(/^[a-zA-zа-яА-я]+$/)) {
+		return line.length;
+	}
+	return line.slice(start).search(/[^a-zA-zа-яА-я]/) + start;
 }
 
 function skipSpace(line, start) {
@@ -194,9 +197,13 @@ function getStringFromTree(tree){
 }
 
 
+let path = 'tests/unification_test3.txt';
+if (process.argv.length >= 3) {
+	path = process.argv[2];
+}
 
 
-Init('tests/unification_test1.txt');
+Init(path);
 if (error) {
 	console.error(error);
 	exit(1);

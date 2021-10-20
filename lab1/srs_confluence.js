@@ -83,6 +83,12 @@ function checkOverlap(words) {
 }
 
 
-Init('tests/confluence_test5.txt');
+let path = 'tests/unification_test3.txt';
+if (process.argv.length >= 3) {
+	path = process.argv[2];
+}
+
+
+Init(path);
 checkOverlap(rulesLeftSides);
 console.log(resultText);
