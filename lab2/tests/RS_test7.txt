@@ -1,0 +1,2 @@
+S = abS + aT + a
+T = (a | b)T + b

@@ -1,0 +1,3 @@
+X = aX + bY + cZ
+Y = cX + aY + bZ
+Z = bX + cY + aZ

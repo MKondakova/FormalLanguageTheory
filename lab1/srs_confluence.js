@@ -37,7 +37,7 @@ function getLeftSides(input) {
 	return result;
 }
 
-const emptyStringRegexp = /^\s+$/;
+const emptyStringRegexp = /^\s*$/;
 
 function prefixFunction(s) {
 	const result = [0];

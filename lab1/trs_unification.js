@@ -202,7 +202,6 @@ if (process.argv.length >= 3) {
 	path = process.argv[2];
 }
 
-
 Init(path);
 if (error) {
 	console.error(error);
