@@ -1,0 +1,11 @@
+S -> aM 
+S -> b
+M -> aV
+M -> oS
+M->l
+M->a
+V -> kM
+S -> bN
+N -> aL 
+L -> aP
+P -> sN 

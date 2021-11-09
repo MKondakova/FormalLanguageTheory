@@ -1,27 +1,35 @@
-const fs = require('fs');
-const { resourceUsage, exit } = require('process');
-const { getSystemErrorMap } = require('util');
+import * as process from 'process';
+import { exprInBrackets, solveSystem } from './solve_system.js';
+import { skipSpace, getVarEnd, getExprEnd, getInput } from './utils.js'
 
 let error = null;
 let system = {};
-const emptyStringRegexp = /^\s*$/;
 
 function Init(path) {
-	let input = '';
-	try {
-		input = fs.readFileSync(path, 'utf8');
-	} catch (err) {
-		error = err.toString();
-		return;
+	const inputObj = getInput(path);
+	if (inputObj.error !== null) {
+		error = inputObj.error 
 	}
-	input = input.split(/\r\n|\r|\n/);
+	const input = inputObj.input;
 	getSystem(input);
+	if (error !== null) return;
+	const names = new Set();
+	for (const name in system) {
+		names.add(...Object.keys(system[name]))
+	}
+	for (const name in system) {
+		names.delete(name)
+	}
+	if (names.size > 0){
+		const needNames = [];
+		names.forEach(n => needNames.push(n))
+		error = `Не хватает уравнений для ${needNames}`;
+	}
 }
 
 function getSystem(input) {
 	for (let i in input){
 		let line = input[i];
-		if (line.match(emptyStringRegexp)) continue;
 		let pos = 0;
 		pos = skipSpace(line, pos);
 		let varEnd = getVarEnd(line, pos);
@@ -98,6 +106,7 @@ function getRegex(line, pos){
 		if (pos <= line.length && line[pos] === ')') {
 			++pos; // skip ')'
 			expr = expr.slice(0, -1);
+			expr = '(' + expr + ')';
 			return [pos, expr];
 		} else {
 			error = `Ожидался символ \')\' на ${pos} позиции.`;
@@ -114,41 +123,8 @@ function getRegex(line, pos){
 	// в позиции должно быть начало названия пер
 }
 
-function getVarEnd(line, pos) {
-	return getEndByRegex(line, pos, /[^A-Z]/);
-}
 
-function getExprEnd(line, pos) {
-	return getEndByRegex(line, pos, /[^a-z]/)
-}
-
-function skipSpace(line, start) {
-	const lastPos = line.slice(start).search(/\S/);
-	return lastPos === -1 ? start : lastPos + start;
-}
-/**
- * Положение первого неподходящего символа в line, начиная с pos
- * @param {RegExp} regex Определяет неподходящий под условие символ
- * @returns {null|number} Если на позиции pos символ неподходящий или строка пустая, возвращает null
- */
-function getEndByRegex(line, pos, regex) {
-	if (line.length === 0) {
-		return null;	
-	}
-	const endPosition = line.slice(pos).search(regex);
-	if (endPosition === -1) {
-		return line.length;
-	}
-	const varEnd = endPosition + pos;
-	if (varEnd === pos) {
-		return null;
-	}
-	return varEnd;
-
-}
-
-
-let path = 'tests/RS_test1.txt';
+let path = 'tests/RS_test7.txt';
 if (process.argv.length >= 3) {
 	path = process.argv[2];
 }
@@ -157,16 +133,11 @@ Init(path);
 console.log(system);
 if (error) {
 	console.log(error);
-	exit(0);
+	process.exit(0);
 }
-
-tests = [
-	"",
-	"a",
-	"  D",
-	"FFFF", 
-	"Fa", 
-	"FFa"
-];
-
-// tests.forEach(v => console.log(v, getEndByRegex(v, 0, /^[A-Z]+$/)))
+const res = solveSystem(system)
+console.log(res);
+if (error) {
+	console.log(error);
+	process.exit(0);
+}

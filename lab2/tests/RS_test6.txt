@@ -1,3 +1,3 @@
-X = aX + bY + cZ
-Y = cX + aY + bZ
-Z = bX + cY + aZ
+X = aX + bY + cZ + e
+Y = cX + aY + bZ + e
+Z = bX + cY + aZ + e

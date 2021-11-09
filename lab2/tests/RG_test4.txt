@@ -1,0 +1,6 @@
+S -> a
+S -> aB 
+B -> bB
+B -> cC
+C -> f
+C-> kB 
