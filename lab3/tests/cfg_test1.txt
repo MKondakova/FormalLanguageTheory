@@ -1,0 +1,5 @@
+S->aB1
+B1->babS
+A ->aaNK
+N->sK
+K->sa

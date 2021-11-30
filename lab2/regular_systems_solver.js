@@ -1,5 +1,5 @@
 import * as process from 'process';
-import { exprInBrackets, solveSystem } from './solve_system.js';
+import { solveSystem } from './solve_system.js';
 import { skipSpace, getVarEnd, getExprEnd, getInput } from './utils.js'
 
 let error = null;
