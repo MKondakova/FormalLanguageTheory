@@ -1,0 +1,4 @@
+S -> kAhA
+A -> cBc
+B -> lS
+B->l

@@ -1,6 +1,7 @@
 import * as fs from 'fs';
+import { spawn } from 'child_process';
 
-
+const GRAPHVIZ_PATH = "C:\\Program Files (x86)\\Graphviz\\bin\\dot"
 
 const emptyStringRegexp = /^\s*$/;
 const varRegex = /^[A-Z][0-9]*/
@@ -70,6 +71,18 @@ function getInput(path) {
 	input = input.split(/\r\n|\r|\n/).filter(line => !line.match(emptyStringRegexp)).map(s => s.trim());
 	return { input, error };
 }
+
+function generateGraph(pairs, filename){
+	let text = 'digraph G {';
+	pairs.forEach(p => text += `${p[0]} -> ${p[1]};`)
+	text += `}`;
+	let p = spawn(GRAPHVIZ_PATH, ['-Tpng', `-o ${filename}.png`]);
+	p.stdin.write(text);
+	p.stdin.end();
+}
+
+
+
 export {
 	skipSpace, 
 	getExprEnd,
@@ -77,5 +90,6 @@ export {
 	emptyStringRegexp,
 	getInput,
 	isName,
-	isExpr
+	isExpr,
+	generateGraph
 }
