@@ -150,10 +150,10 @@ function BuildNtermTree(name){
 		regular.push(name);
 		return;
 	}
-
 	let queue = [];
-	const firstCheckObject = { 'start': name, 'line': [name],  'prevNterms': [], 'f': true };
+	const firstCheckObject = { 'start': name, 'line': [name],  'prevNterms': [], 'f': true, 'tree':[name] };
 	queue.push(firstCheckObject);
+	let tree = null;
 	let F1AF2 = null;
 	while (queue.length > 0) {
 		const currentCheck = queue.shift();
@@ -162,21 +162,26 @@ function BuildNtermTree(name){
 		const firstNterm = currentCheck.line[firstNtermPos];
 		if (firstNterm === currentCheck.start && !currentCheck.f) {
 			F1AF2 = currentCheck.line;
-			//tree.push([currentCheck.prev_nterm, currentCheck.start]);
+			tree = [...currentCheck.tree];
 			break;
 		}
 		if (currentCheck.prevNterms.includes(firstNterm)) {
 			continue;
 		}
 		currentCheck.prevNterms.push(firstNterm)
-		//if (!currentCheck.f) tree.push([currentCheck.prev_nterm, firstNterm]);
+		let downInsertPos = Math.max(0, currentCheck.tree.lastIndexOf('Down'));
+		downInsertPos += currentCheck.tree.slice(downInsertPos + 1).findIndex(isName) + 1 // чтобы пропустить Down
+		currentCheck.tree.splice(downInsertPos + 1, 0, 'Down');
 		grammar[firstNterm].right_parts.forEach((p, i) => {
 			let newLine = [...currentCheck.line];
+			let newTree = [...currentCheck.tree];
+			newTree.splice(downInsertPos + 2, 0, ...p, 'Up')
 			newLine.splice(firstNtermPos, 1, ...p);
-			queue.push({ 'start': currentCheck.start, 'line': newLine, 'prevNterms': currentCheck.prevNterms, 'f': false })
+			queue.push({ 'start': currentCheck.start, 'line': newLine, 'prevNterms': currentCheck.prevNterms, 'f': false, 'tree': newTree })
 		})
 	}
 	if (F1AF2 === null) return; // Накачки не встретилось
+	generateGraph(tree, name);
 	const pumpIndex = F1AF2.findIndex(isName);
 	let isGood = F1AF2.slice(pumpIndex + 1).every(l => isExpr(l) || isName(l) && grammar[l].isRR);
 	if (!isGood) return;
@@ -303,7 +308,7 @@ function recursiveClosureRegularityCheck() {
 
 
 
-let path = 'tests/t6.txt';
+let path = 'tests/cfg_test3.txt';
 if (process.argv.length >= 3) {
 	path = process.argv[2];
 }

@@ -72,15 +72,25 @@ function getInput(path) {
 	return { input, error };
 }
 
-function generateGraph(pairs, filename){
-	let text = 'digraph G {';
-	pairs.forEach(p => text += `${p[0]} -> ${p[1]};`)
+function generateGraph(tree, filename){
+	let text = 'digraph G {\n';
+	text += `0 [label="${tree[0]}"]\n`
+	let heads = [0];
+	for (let i = 2; i < tree.length; i++){
+		if (tree[i] === 'Down'){
+			heads.push(i-1);
+		} else if (tree[i] === 'Up') {
+			heads.pop();
+		} else {
+			text += `${i} [label="${tree[i]}"]\n`;
+			text += `${heads[heads.length - 1]} -> ${i}\n`
+		}
+	}
 	text += `}`;
 	let p = spawn(GRAPHVIZ_PATH, ['-Tpng', `-o ${filename}.png`]);
 	p.stdin.write(text);
 	p.stdin.end();
 }
-
 
 
 export {

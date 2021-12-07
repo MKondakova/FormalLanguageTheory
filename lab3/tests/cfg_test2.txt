@@ -1,2 +1,2 @@
 S-> aBc
-B-> kB
+B-> kB 
