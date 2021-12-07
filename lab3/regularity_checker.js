@@ -126,34 +126,30 @@ function filterReachableNterms() {
 }
 
 function GetMaxNtermSets() {
-	let sets = [];
-	for (const key in grammar) {
-		sets.push(new Set([key]));
-	}
-	for (const key in grammar) {
-		const mainSetPos = sets.findIndex(s => s.has(key));
-		const mainSet = sets[mainSetPos];
-		grammar[key].names.forEach(n => {
-			const setPos = sets.findIndex(s => s.has(n));
-			if (setPos !== mainSetPos) {
-				mainSet.add(...sets[setPos]);
-				sets.splice(setPos, 1);
+	let wasChanged;
+	do {
+		wasChanged = false;
+		for (const name in grammar) {
+			if (grammar[name].isRR === false) continue;
+			for (const p of grammar[name].right_parts) {
+				for (const n of p) {
+					if (isExpr(n)) continue;
+					if (grammar[n].isRR === false) {
+						grammar[name].isRR = false;
+						wasChanged = true;
+					}
+				}
 			}
-		});
-	}
-	const result = sets.filter(s => {
-		let isRegular = true;
-		s.forEach(n => isRegular = isRegular && grammar[n].isRR);
-		return isRegular;
-	})
-	for (const key in grammar) {
-		grammar[key].isRR = result.some(n => n.has(key))
-	}
-	return result;
+		}
+	} while (wasChanged);
+	return Object.keys(grammar).filter(k => grammar[k].isRR)
 }
 
 function BuildNtermTree(name){
-	let tree = []
+	if (maxRegularSet.includes(name)) {
+		regular.push(name);
+		return;
+	}
 
 	let queue = [];
 	const firstCheckObject = { 'start': name, 'line': [name],  'prevNterms': [], 'f': true };
@@ -169,7 +165,7 @@ function BuildNtermTree(name){
 			//tree.push([currentCheck.prev_nterm, currentCheck.start]);
 			break;
 		}
-		if (firstNterm in currentCheck.prevNterms) {
+		if (currentCheck.prevNterms.includes(firstNterm)) {
 			continue;
 		}
 		currentCheck.prevNterms.push(firstNterm)
@@ -233,14 +229,13 @@ function checkShortestTerminalScanning(name, languageString) {
 	const firstCheckObject = [name]
 	queue.push(firstCheckObject);
 	let isWordsInLanguage = true;
-	let meetTerminalString = false;
 	while (queue.length > 0 && isWordsInLanguage) {
 		const currentLine = queue.shift();
 		const firstNtermPos = currentLine.findIndex(isName);
 		if (firstNtermPos === -1) {
-			meetTerminalString = true;
 			isWordsInLanguage = isWordsInLanguage && doesBelongToLanguage(currentLine, languageString)
 		} else {
+			let firstNterm = currentLine[firstNtermPos];
 			grammar[firstNterm].right_parts.forEach(p => {
 				let newLine = [...currentLine];
 				newLine.splice(firstNtermPos, 1, ...p);
@@ -261,64 +256,72 @@ function lastRegularityCheck() {
 		grammar[key].isRR = 0;
 	}
 
-	recursiveClosureRegularityCheck('S');
+	recursiveClosureRegularityCheck();
 
-	if (grammar['S'].isRR === 0 && !('S' in negativeSuspected)) {
-		console.log('Регулярность языка определить не удалось');
-	} else if (grammar['S'].isRR === 0) {
-		console.log('Язык не регулярен');
-	} else if (grammar['S'].isRR === 1) {
-		console.log('Язык возможно регулярен');
-	} else {
+	if (regular.includes('S')){
 		console.log('Язык регулярен');
+	} else if (positiveSuspected.includes('S')){
+		console.log('Язык возможно регулярен');
+	} else if (!(negativeSuspected.includes('S'))) {
+		console.log('Регулярность языка определить не удалось');
+	} else {
+		console.log('Язык подозрительный на нерегулярность');
 	}
 }
 
-function recursiveClosureRegularityCheck(name, visited = {}) {
-	visited[name] = true;
-	for (const p of grammar[name].right_parts) {
-		for (const n of p) {
-			if (isExpr(n)) continue;
-			if (grammar[n].isRR === 0 && n in visited) continue; // против бесконечных циклов *если мы тут были, значит узнаем регулярность позже
-			if (grammar[n].isRR === 0) recursiveClosureRegularityCheck(n, visited);
-			if (grammar[n].isRR === 0) {
-				grammar[name].isRR = 0;
-				return;
-			}
-			if (grammar[n].isRR === 1) {
-				grammar[name].isRR = 1;
-			}
-			if (grammar[n].isRR === 2 && grammar[name].isRR === 0) {
-				grammar[name].isRR = 2;
-			}
-		}
-	}
-	if (grammar[name].isRR === 0) {
-		if (name in regular) {
+function recursiveClosureRegularityCheck() {
+	let wasChanged;
+	do {
+		wasChanged = false;
+		for (const name in grammar) {
 			grammar[name].isRR = 2;
-		} else if (name in positiveSuspected) {
-			grammar[name].isRR = 1;
+			if (regular.includes(name) || positiveSuspected.includes(name)) continue;
+			for (const p of grammar[name].right_parts) {
+				for (const n of p) {
+					if (isExpr(n)) continue;
+					if (!(regular.includes(n) || positiveSuspected.includes(n))) {
+						grammar[name].isRR = 0;
+						break;
+					}
+					if (!(regular.includes(n))) {
+						grammar[name].isRR = 1;
+					}
+				}
+				if (grammar[name].isRR === 0) break;
+			}
+			if (grammar[name].isRR === 2) {
+				regular.push(name);
+				wasChanged = true;
+			}
+			if (grammar[name].isRR === 1) {
+				positiveSuspected.push(name);
+				wasChanged = true;
+			}
 		}
-	}
+	} while (wasChanged);
 }
 
 
 
-let path = 'tests/cfg_test1.txt';
+let path = 'tests/t6.txt';
 if (process.argv.length >= 3) {
 	path = process.argv[2];
 }
 
 Init(path);
-console.log(grammar);
 if (error) {
 	console.log(error);
 	process.exit(0);
 }
 
-const sets = GetMaxNtermSets();
+const maxRegularSet = GetMaxNtermSets();
 
-console.log(sets);
+if (maxRegularSet.includes('S')) {
+	console.log('Язык регулярен');
+	process.exit(0);
+}
+
+
 if (error) {
 	console.log(error);
 	process.exit(0);
@@ -328,7 +331,7 @@ for (const name in grammar) {
 	BuildNtermTree(name);
 }
 
-if ('S' in regular) {
+if (regular.includes('S')) {
 	console.log('Язык регулярен');
 } else {
 	lastRegularityCheck()
