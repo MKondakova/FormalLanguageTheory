@@ -220,7 +220,7 @@ function doesBelongToLanguage(word, languageString, remainingString = '') {
 		return belong;
 	}
 	while (remainingString.length >= 0 && word.length > 0) {
-		if (remainingString.length === 0) remainingString = languageString;
+		if (remainingString.length === 0) remainingString = [...languageString];
 		if (isName(remainingString[0])) break;
 		if (remainingString[0] !== word[0]) return false;
 		remainingString.shift();
@@ -234,12 +234,14 @@ function checkShortestTerminalScanning(name, languageString) {
 	const firstCheckObject = [name]
 	queue.push(firstCheckObject);
 	let isWordsInLanguage = true;
+	let alreadyFindOneTermString = false;
 	while (queue.length > 0 && isWordsInLanguage) {
 		const currentLine = queue.shift();
 		const firstNtermPos = currentLine.findIndex(isName);
 		if (firstNtermPos === -1) {
+			alreadyFindOneTermString = true;
 			isWordsInLanguage = isWordsInLanguage && doesBelongToLanguage(currentLine, languageString)
-		} else {
+		} else if (!alreadyFindOneTermString) {
 			let firstNterm = currentLine[firstNtermPos];
 			grammar[firstNterm].right_parts.forEach(p => {
 				let newLine = [...currentLine];
@@ -308,7 +310,7 @@ function recursiveClosureRegularityCheck() {
 
 
 
-let path = 'tests/cfg_test3.txt';
+let path = 'tests/cfg_test4.txt';
 if (process.argv.length >= 3) {
 	path = process.argv[2];
 }
