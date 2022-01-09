@@ -88,7 +88,7 @@ function getGrammar(input) {
 
 function clearGrammar() {
 	for (const g in grammar) {
-		grammar[g].good = (grammar[g].free.length > 0);
+		grammar[g].good = (grammar[g].free.length > 0); //то есть существуют правила вида A->bB | A->b
 	}
 	const rules = new Set();
 	isRuleGood('S', rules);
@@ -109,17 +109,17 @@ function isRuleGood(name, stack) {
 		return grammar[name].good;
 	}
 	stack.add(name);
-	let isOutterGood = false;
+	let isOuterGood = false;
 	for (const term in grammar[name].names){
-		isOutterGood = isOutterGood || isRuleGood(term, stack);
+		isOuterGood = isOuterGood || isRuleGood(term, stack);
 	}
-	if (isOutterGood && !grammar[name].good) {
+	if (isOuterGood && !grammar[name].good) {
 		grammar[name].good = true;
 		stack.delete(name);
 		isRuleGood(name, stack);
 	}
-	grammar[name].good = grammar[name].good || isOutterGood;
-	return (grammar[name].good || isOutterGood);
+	grammar[name].good = grammar[name].good || isOuterGood;
+	return (grammar[name].good || isOuterGood);
 }
 
 function getSystemFromGrammar() {

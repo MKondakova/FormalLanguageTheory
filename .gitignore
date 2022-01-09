@@ -2,3 +2,4 @@
 */tree.txt
 *.docx
 */node_modules
+*/.idea
