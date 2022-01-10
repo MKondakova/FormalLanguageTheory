@@ -1,8 +1,11 @@
 import * as process from 'process';
-import { getExprEnd, getInput, getVarEnd, isExpr, isName, skipSpace } from './utils.js'
+import { getExprEnd, getInput, getVarEnd, isExpr, isName, skipSpace } from './utils.js';
+import { exprInBrackets, getOrRegex } from '../lab2/solve_system.js';
+import { getRegexForGrammar, NOT_PRODUCTIVE } from '../lab2/RG_to_regex.js';
 
 let error = null;
 let grammar = {};
+let startNterm = '[S]';
 
 function Init(path) {
     const inputObj = getInput(path);
@@ -14,7 +17,7 @@ function Init(path) {
     if (error !== null) return;
     const names = new Set();
     for (const name in grammar) {
-        grammar[name].names.forEach(n => names.add(n))//todo проверка на S
+        grammar[name].names.forEach(n => names.add(n))
     }
     for (const name in grammar) {
         names.delete(name)
@@ -24,6 +27,9 @@ function Init(path) {
         names.forEach(n => needNames.push(n))
         error = `Не хватает уравнений для ${needNames}`;
 
+    }
+    if (!(startNterm in grammar) && Object.keys((grammar).length > 0)) {
+        startNterm = Object.keys(grammar)[0];
     }
 }
 
@@ -106,13 +112,13 @@ function createUsageDictionary() {
 
 /**
  * @param usageDictionary {Object}
- * @param isRegularNTerm {function} функция определения регулярности
+ * @param isRR {boolean} Праворегулярные ли термы нужны
  * @returns {string[]}
  */
-function getIrregularNTerms(usageDictionary, isRegularNTerm) {
+function getRegularNTerms(usageDictionary, isRR) {
     let irregularNTerms = [];
     for (const nterm in grammar) {
-        if (!isRegularNTerm(nterm)) {
+        if (!isRegular(nterm, isRR)) {
             irregularNTerms.push(nterm)
         }
     }
@@ -129,8 +135,8 @@ function getIrregularNTerms(usageDictionary, isRegularNTerm) {
 
 function GetRegularNTerms() {
     const usageDictionary = createUsageDictionary();
-    const rightRegular = getIrregularNTerms(usageDictionary, (name) => isRegular(name, true));
-    const leftRegular = getIrregularNTerms(usageDictionary, (name) => isRegular(name, false));
+    const rightRegular = getRegularNTerms(usageDictionary, true);
+    const leftRegular = getRegularNTerms(usageDictionary, false);
     const allRegular = [...rightRegular];
     allRegular.push(...leftRegular.filter(n => !rightRegular.includes(n)));
     let closure = [];
@@ -147,7 +153,7 @@ function GetRegularNTerms() {
             }
         }
     } while (changes)
-    return [...allRegular, ...closure];
+    return { 'all': [...allRegular, ...closure], rightRegular, leftRegular, closure };
 }
 
 /**
@@ -159,8 +165,7 @@ function isRegular(nterm, isRR) {
     let result = true;
     grammar[nterm].right_parts.forEach(part =>
                                            result = result && part.length <= 2 &&
-                                               (part.length === 0 ||
-                                                   part.length === 1 ||
+                                               (part.length === 1 ||
                                                    part.length === 2 &&
                                                    (isRR && isExpr(part[0]) && isName(part[1]) ||
                                                        !isRR && isName(part[0]) && isExpr(part[1]))))
@@ -169,14 +174,16 @@ function isRegular(nterm, isRR) {
 
 function wrapTerminals(regularNTerms) {
     for (const nterm in grammar) {
-        if (regularNTerms.includes(nterm)) continue;
+        if (regularNTerms.all.includes(nterm)) continue;
         for (const part of grammar[nterm].right_parts) {
             for (let i = 0; i < part.length; ++i) {
                 if (isExpr(part[i])) {
                     const newNterm = ("[" + part[i] + "]");
                     if (!(newNterm in grammar)) {
                         grammar[newNterm] = { 'names': new Set(), 'right_parts': [[part[i]]] }
-                        regularNTerms.push(newNterm);
+                        regularNTerms.all.push(newNterm);
+                        regularNTerms.rightRegular.push(newNterm);
+                        regularNTerms.leftRegular.push(newNterm);
                     }
                     grammar[nterm].names.add(newNterm);
                     part[i] = newNterm;
@@ -220,7 +227,7 @@ function FindFollowOrPrecede(regularNTerms, isFollow = true) {
     for (const name in grammar) {
         grammar[name][key] = [];
     }
-    grammar['[S]'][key].push(isFollow ? 'END' : '^');
+    grammar[startNterm][key].push(isFollow ? 'END' : '^');
     let changes;
     do {
         changes = false;
@@ -301,6 +308,179 @@ function getSingleTermLanguage(nterm) {
     return singleTermLanguage;
 }
 
+function FindRegexes(regularNTerms, tokens) {
+    let result = {};
+    const RRGrammar = adaptRRGrammar(regularNTerms.rightRegular);
+    regularNTerms.rightRegular
+        .forEach(t => result[t] = getRegexForGrammar(RRGrammar, t));
+    regularNTerms.leftRegular.filter(t => !regularNTerms.rightRegular.includes(t))
+        .forEach(t => {
+            const newGrammar = adaptLRGrammar(t);
+            const startNterm = (t in newGrammar.additional_terms) ? newGrammar.additional_terms[t] : t;
+            delete newGrammar['additional_terms'];
+            result[t] = getRegexForGrammar(newGrammar, startNterm);
+        });
+    const productiveNterms = findProductiveNTerms(grammar);
+    regularNTerms.closure.filter(t => !productiveNterms.includes(t))
+        .forEach(t => result[t] = NOT_PRODUCTIVE);
+
+    regularNTerms.closure.filter(t => productiveNterms.includes(t))
+        .forEach(t => result = findClosureRegex(result, t));
+
+
+    for (const n in result) {
+        if (!tokens.includes(n)) {
+            delete result[n];
+            continue;
+        }
+        result[n] = exprInBrackets(result[n]) ? result[n].slice(1, -1) : result[n];
+    }
+
+    return result;
+}
+
+function findClosureRegex(regexes, nterm) {
+    let result = "";
+    let eachRuleRegex = [];
+    for (const rule of grammar[nterm].right_parts) {
+        let regex = "";
+        for (const t of rule) {
+            if (isExpr(t)) {
+                regex += t;
+            } else {
+                if (!(t in regexes)) {
+                    regexes = findClosureRegex(regexes, t);
+                }
+                if (regexes[t] === NOT_PRODUCTIVE) {
+                    result = NOT_PRODUCTIVE;
+                    break;
+                }
+                regex += regexes[t];
+            }
+        }
+        if (result === NOT_PRODUCTIVE) {
+            eachRuleRegex = [];
+            break;
+        } else {
+            eachRuleRegex.push(regex);
+        }
+    }
+
+    regexes[nterm] = eachRuleRegex.length > 0 ? getOrRegex(...eachRuleRegex) : result;
+
+    return regexes;
+}
+
+function adaptLRGrammar(startNTerm) {
+    let newGrammar = { 'additional_terms': {} };
+    let queue = [startNTerm];
+    let i = 0;
+    while (i < queue.length) {
+        const name = queue[i];
+        for (const rule of grammar[name].right_parts) {
+            if (rule.length === 1 && !isExpr(rule[0])) {
+                if (!(rule[0] in newGrammar)) {
+                    newGrammar[rule[0]] = { 'free': [], 'names': {} };
+                }
+
+                if (!(name in newGrammar[rule[0]].names)) {
+                    newGrammar[rule[0]].names[name] = [];
+                }
+                newGrammar[rule[0]].names[name].push("");
+
+            } else if (rule.length === 1 && isExpr(rule[0])) {
+                const star_name = getAdditionalTermName(name);
+                if (!(star_name in newGrammar.additional_terms)) {
+                    newGrammar.additional_terms[name] = star_name;
+                    newGrammar[star_name] = { 'free': [], 'names': {} };
+                }
+
+                if (!(name in newGrammar[star_name].names)) {
+                    newGrammar[star_name].names[name] = [];
+                }
+                newGrammar[star_name].names[name].push(rule[0]);
+                if (name === startNTerm) {
+                    newGrammar[star_name].free.push(rule[0])
+                }
+
+            } else {
+                if (!(rule[0] in newGrammar)) {
+                    newGrammar[rule[0]] = { 'free': [], 'names': {} };
+                }
+
+                if (!(name in newGrammar[rule[0]].names)) {
+                    newGrammar[rule[0]].names[name] = [];
+                }
+                newGrammar[rule[0]].names[name].push(rule[1]);
+
+                if (rule[0] === startNTerm) {
+                    newGrammar[rule[0]].free.push(rule[1]);
+                }
+            }
+            if (isName(rule[0], false) && !queue.includes(rule[0])) {
+                queue.push(rule[0]);
+            }
+        }
+        ++i;
+    }
+    return newGrammar;
+}
+
+function findProductiveNTerms(grammar) {
+    let productive = [];
+    let changes;
+    do {
+        changes = false;
+        for (const name in grammar) {
+            if (productive.includes(name)) continue;
+            let ntermProductive = false;
+            for (const rule of grammar[name].right_parts) {
+                let isRuleProduct = true;
+                rule.forEach(t => {
+                    if (isName(t, false)) {
+                        isRuleProduct &= productive.includes(t);
+                    }
+                });
+                ntermProductive |= isRuleProduct;
+            }
+            if (ntermProductive) {
+                productive.push(name);
+                changes = true;
+            }
+        }
+    } while (changes);
+    return productive;
+}
+
+function getAdditionalTermName(name) {
+    return name.slice(0, -1) + '*]';
+}
+
+function adaptRRGrammar(regularNTerms) {
+    let newGrammar = {};
+    for (const name of regularNTerms) {
+        newGrammar[name] = { 'free': [], 'names': {} };
+        for (const rule of grammar[name].right_parts) {
+            if (rule.length === 1 && isExpr(rule[0])) {
+                newGrammar[name].free.push(rule[0]);
+                continue;
+            }
+            if (rule.length === 1) {
+                if (!(rule[0] in newGrammar[name].names)) {
+                    newGrammar[name].names[rule[0]] = [];
+                }
+                newGrammar[name].names[rule[0]].push("");
+            } else {
+                if (!(rule[1] in newGrammar[name].names)) {
+                    newGrammar[name].names[rule[1]] = [];
+                }
+                newGrammar[name].names[rule[1]].push(rule[0]);
+            }
+        }
+    }
+    return newGrammar;
+}
+
 let path = 'tests/autolex_test3.txt';
 if (process.argv.length >= 3) {
     path = process.argv[2];
@@ -312,15 +492,16 @@ if (error) {
     process.exit(0);
 }
 
-let regular = GetRegularNTerms();
-regular = wrapTerminals(regular);
-FindFirstOrLast(regular);
-FindFollowOrPrecede(regular);
-FindFirstOrLast(regular, false);
-FindFollowOrPrecede(regular, false)
-const tokens = FindTokens(regular);
-//const regexes = FindRegexes(tokens);
+let regularNTerms = GetRegularNTerms();
+regularNTerms = wrapTerminals(regularNTerms);
+FindFirstOrLast(regularNTerms.all);
+FindFollowOrPrecede(regularNTerms.all);
+FindFirstOrLast(regularNTerms.all, false);
+FindFollowOrPrecede(regularNTerms.all, false)
+const tokens = FindTokens(regularNTerms.all);
+const regexes = FindRegexes(regularNTerms, tokens);
 
 
-console.log("grammar", grammar, regular);
+console.log("grammar", grammar, regularNTerms.all);
+console.log("grammar", grammar, regularNTerms.all);
 console.log("grammar", grammar);
