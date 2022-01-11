@@ -33,7 +33,6 @@ function isNTermProductive(grammar, name, stack = new Set()) {
     if (isOuterProductive && !grammar[name].productive) {
         grammar[name].productive = true;
         stack.delete(name);
-        isNTermProductive(grammar, name, stack);
     }
     grammar[name].productive = grammar[name].productive || isOuterProductive;
     return grammar[name].productive;
